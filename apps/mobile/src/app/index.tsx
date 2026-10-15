@@ -1,16 +1,15 @@
 import { formatCents, type Lease, type Property, type Unit } from '@rental/shared';
-import { useEffect, useState } from 'react';
-import { StyleSheet } from 'react-native';
+import { router } from 'expo-router';
 
-import { Button } from '@/components/form';
+import { Card, LinkCard, SectionTitle } from '@/components/card';
+import { Button, FormMessage } from '@/components/form';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { useAsync } from '@/hooks/use-async';
+import { listProperties } from '@/lib/landlord';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/providers/auth';
 
-type PropertyWithUnits = Property & { units: Pick<Unit, 'id'>[] };
 type LeaseWithUnit = Lease & { units: Pick<Unit, 'label'> & { properties: Pick<Property, 'name'> } };
 
 export default function HomeScreen() {
@@ -27,75 +26,71 @@ export default function HomeScreen() {
 }
 
 function LandlordHome() {
-  const [properties, setProperties] = useState<PropertyWithUnits[]>();
-
-  useEffect(() => {
-    supabase
-      .from('properties')
-      .select('*, units(id)')
-      .order('created_at')
-      .then(({ data }) => setProperties((data ?? []) as PropertyWithUnits[]));
-  }, []);
-
-  if (!properties) return <ThemedText type="small">Loading your properties…</ThemedText>;
+  const { data: properties, error } = useAsync(listProperties, []);
 
   return (
-    <ThemedView style={styles.section}>
-      <ThemedText type="smallBold">Your properties</ThemedText>
-      {properties.length === 0 ? (
+    <>
+      <SectionTitle>Your properties</SectionTitle>
+      <FormMessage error>{error}</FormMessage>
+      {!properties ? (
+        <ThemedText type="small">Loading your properties…</ThemedText>
+      ) : properties.length === 0 ? (
         <ThemedText type="small" themeColor="textSecondary">
-          No properties yet. Adding properties, units and leases comes next.
+          Add your first property, then its units, then a lease for each occupied unit.
         </ThemedText>
       ) : (
-        properties.map((property) => (
-          <ThemedView key={property.id} type="backgroundElement" style={styles.card}>
-            <ThemedText type="smallBold">{property.name}</ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">
-              {property.address_line1}, {property.city} · {property.units.length} units
-            </ThemedText>
-          </ThemedView>
-        ))
+        properties.map((property) => {
+          const occupied = property.units.filter((unit) =>
+            unit.leases.some((lease) => lease.status === 'active'),
+          ).length;
+          return (
+            <LinkCard
+              key={property.id}
+              href={{ pathname: '/properties/[id]', params: { id: property.id } }}
+              title={property.name}
+              detail={`${property.address_line1}, ${property.city}`}
+              note={`${occupied} of ${property.units.length} units leased`}
+            />
+          );
+        })
       )}
-    </ThemedView>
+      <Button title="Add property" onPress={() => router.push('/properties/new')} />
+    </>
   );
 }
 
 function TenantHome() {
-  const [leases, setLeases] = useState<LeaseWithUnit[]>();
-
-  useEffect(() => {
-    supabase
+  const { data: leases, error } = useAsync(async () => {
+    const { data, error: queryError } = await supabase
       .from('leases')
       .select('*, units(label, properties(name))')
-      .then(({ data }) => setLeases((data ?? []) as LeaseWithUnit[]));
+      .eq('status', 'active');
+    if (queryError) throw new Error(queryError.message);
+    return data as LeaseWithUnit[];
   }, []);
 
-  if (!leases) return <ThemedText type="small">Loading your lease…</ThemedText>;
-
   return (
-    <ThemedView style={styles.section}>
-      <ThemedText type="smallBold">Your lease</ThemedText>
-      {leases.length === 0 ? (
+    <>
+      <SectionTitle>Your lease</SectionTitle>
+      <FormMessage error>{error}</FormMessage>
+      {!leases ? (
+        <ThemedText type="small">Loading your lease…</ThemedText>
+      ) : leases.length === 0 ? (
         <ThemedText type="small" themeColor="textSecondary">
           No lease yet. Ask your landlord to invite the email you signed up with.
         </ThemedText>
       ) : (
         leases.map((lease) => (
-          <ThemedView key={lease.id} type="backgroundElement" style={styles.card}>
+          <Card key={lease.id}>
             <ThemedText type="smallBold">
               {lease.units.properties.name}, {lease.units.label}
             </ThemedText>
             <ThemedText type="small" themeColor="textSecondary">
               {formatCents(lease.rent_amount)} due on day {lease.due_day} of each month
             </ThemedText>
-          </ThemedView>
+          </Card>
         ))
       )}
-    </ThemedView>
+    </>
   );
 }
-
-const styles = StyleSheet.create({
-  section: { gap: Spacing.two },
-  card: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.one },
-});

@@ -19,10 +19,41 @@ insert into public.properties (id, landlord_id, name, address_line1, city, regio
   values ('aaaaaaaa-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'Elm St', '1 Elm St', 'Austin', 'TX', '78701');
 insert into public.units (id, property_id, label, default_rent)
   values ('aaaaaaaa-0000-0000-0000-000000000002', 'aaaaaaaa-0000-0000-0000-000000000001', 'Apt 1', 185000);
-insert into public.leases (id, unit_id, start_date, rent_amount, status)
-  values ('aaaaaaaa-0000-0000-0000-000000000003', 'aaaaaaaa-0000-0000-0000-000000000002', '2026-11-01', 185000, 'active');
-insert into public.lease_tenants (lease_id, invite_email)
-  values ('aaaaaaaa-0000-0000-0000-000000000003', 'ten@example.com');
+do $$
+declare
+  v_lease uuid;
+begin
+  v_lease := public.create_lease(
+    'aaaaaaaa-0000-0000-0000-000000000002', '2026-11-01', null, 185000, 1::smallint, 5::smallint, 5000,
+    array['Ten@Example.com ']
+  );
+  assert (select invite_email from public.lease_tenants where lease_id = v_lease) = 'ten@example.com',
+    'invite emails are normalised';
+  begin
+    perform public.create_lease(
+      'aaaaaaaa-0000-0000-0000-000000000002', '2026-12-01', null, 185000, 1::smallint, 0::smallint, 0,
+      array['x@example.com']);
+    raise exception 'second active lease allowed on one unit';
+  exception when unique_violation then null;
+  end;
+  -- A landlord cannot accept an invite on the tenant's behalf.
+  begin
+    update public.lease_tenants set invite_status = 'accepted', tenant_id = '33333333-3333-3333-3333-333333333333';
+    raise exception 'landlord accepted an invite';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    update public.lease_tenants set invite_status = 'accepted';
+    raise exception 'landlord accepted an invite';
+  exception when insufficient_privilege or check_violation then null;
+  end;
+  begin
+    insert into public.lease_tenants (lease_id, invite_email, tenant_id, invite_status)
+      values (v_lease, 'out@example.com', '33333333-3333-3333-3333-333333333333', 'accepted');
+    raise exception 'landlord inserted an accepted invite';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
 do $$ begin
   assert (select count(*) from public.conversations) = 1, 'a lease gets a conversation';
   assert (select count(*) from public.profiles where id = '22222222-2222-2222-2222-222222222222') = 0,
@@ -63,6 +94,13 @@ do $$ begin
   assert (select count(*) from public.messages) = 0, 'outsider sees no messages';
   assert (select count(*) from public.profiles) = 1, 'outsider sees only themselves';
   begin
+    perform public.create_lease(
+      'aaaaaaaa-0000-0000-0000-000000000002', '2027-01-01', null, 100, 1::smallint, 0::smallint, 0,
+      array['out@example.com']);
+    raise exception 'outsider created a lease on another landlord''s unit';
+  exception when insufficient_privilege then null;
+  end;
+  begin
     insert into public.messages (conversation_id, sender_id, body)
       values ((select id from public.conversations limit 1), auth.uid(), 'spam');
     raise exception 'outsider posted a message';
@@ -78,6 +116,15 @@ do $$ begin
   assert (select count(*) from public.messages where read_at is not null) = 1, 'landlord marks it read';
   assert (select count(*) from public.profiles where id = '33333333-3333-3333-3333-333333333333') = 0,
     'landlord cannot see unrelated users';
+end $$;
+
+-- Landlord revokes the tenant; the tenant loses access.
+update public.lease_tenants set invite_status = 'revoked';
+set request.jwt.claim.sub = '22222222-2222-2222-2222-222222222222';
+do $$ begin
+  assert (select count(*) from public.leases) = 0, 'revoked tenant loses the lease';
+  assert (select count(*) from public.messages) = 0, 'revoked tenant loses messages';
+  assert public.accept_lease_invites() = 0, 'a revoked invite cannot be re-accepted';
 end $$;
 
 reset role;
