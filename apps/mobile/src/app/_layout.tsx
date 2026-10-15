@@ -24,6 +24,8 @@ function RootNavigator() {
         <Stack.Screen name="properties/new" options={{ title: 'Add property' }} />
         <Stack.Screen name="properties/[id]" options={{ title: 'Property' }} />
         <Stack.Screen name="units/[id]" options={{ title: 'Unit' }} />
+        <Stack.Screen name="messages/index" options={{ title: 'Messages' }} />
+        <Stack.Screen name="messages/[id]" options={{ title: 'Messages' }} />
       </Stack.Protected>
       <Stack.Protected guard={!session}>
         <Stack.Screen name="sign-in" options={{ headerShown: false }} />

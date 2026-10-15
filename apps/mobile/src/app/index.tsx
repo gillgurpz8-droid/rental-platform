@@ -1,5 +1,6 @@
 import { formatCents, type Lease, type Property, type Unit } from '@rental/shared';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback } from 'react';
 
 import { Card, LinkCard, SectionTitle } from '@/components/card';
 import { Button, FormMessage } from '@/components/form';
@@ -7,6 +8,7 @@ import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
 import { useAsync } from '@/hooks/use-async';
 import { listProperties } from '@/lib/landlord';
+import { unreadTotal } from '@/lib/messages';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/providers/auth';
 
@@ -19,10 +21,18 @@ export default function HomeScreen() {
   return (
     <Screen>
       <ThemedText type="subtitle">Hi, {firstName}</ThemedText>
+      <MessagesButton />
       {profile?.role === 'landlord' ? <LandlordHome /> : <TenantHome />}
       <Button title="Sign out" variant="secondary" onPress={() => supabase.auth.signOut()} />
     </Screen>
   );
+}
+
+function MessagesButton() {
+  const { data: unread, reload } = useAsync(unreadTotal, []);
+  useFocusEffect(useCallback(() => reload(), [reload]));
+  const title = unread ? `Messages (${unread} new)` : 'Messages';
+  return <Button title={title} variant={unread ? 'primary' : 'secondary'} onPress={() => router.push('/messages')} />;
 }
 
 function LandlordHome() {

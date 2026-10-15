@@ -1,5 +1,5 @@
 import { formatCents, leaseFormSchema, type LeaseTenant } from '@rental/shared';
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet } from 'react-native';
 
@@ -19,6 +19,7 @@ import {
   type LeaseWithTenants,
   type UnitDetail,
 } from '@/lib/landlord';
+import { getConversationForLease } from '@/lib/messages';
 
 const INVITE_LABELS: Record<LeaseTenant['invite_status'], string> = {
   pending: 'Invited, waiting for sign-up',
@@ -97,6 +98,17 @@ function ActiveLease({ lease, onChange }: { lease: LeaseWithTenants; onChange: (
             : 'No late fee'}
         </ThemedText>
       </Card>
+
+      <Button
+        title="Message tenants"
+        variant="secondary"
+        onPress={() =>
+          run(async () => {
+            const id = await getConversationForLease(lease.id);
+            router.push({ pathname: '/messages/[id]', params: { id } });
+          })
+        }
+      />
 
       <SectionTitle>Tenants</SectionTitle>
       {lease.lease_tenants.map((tenant) => (

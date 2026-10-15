@@ -72,6 +72,14 @@ do $$ begin
 end $$;
 insert into public.messages (conversation_id, sender_id, body)
   select id, '22222222-2222-2222-2222-222222222222', 'The kitchen sink is leaking' from public.conversations;
+-- Tenant can upload a photo into their conversation's folder.
+insert into storage.objects (bucket_id, name)
+  select 'message-attachments', id || '/sink.jpg' from public.conversations;
+do $$ begin
+  assert (select participant_names from public.list_conversations()) = array['Lana'], 'tenant sees the landlord';
+  assert (select count(*) from storage.objects) = 1, 'tenant sees their attachment';
+  assert (select unread_count from public.list_conversations()) = 0, 'own messages are never unread';
+end $$;
 do $$ begin
   begin
     update public.profiles set role = 'landlord' where id = auth.uid();
@@ -92,6 +100,19 @@ do $$ begin
   assert (select count(*) from public.leases) = 0, 'outsider sees no leases';
   assert (select count(*) from public.properties) = 0, 'outsider sees no properties';
   assert (select count(*) from public.messages) = 0, 'outsider sees no messages';
+  assert (select count(*) from public.list_conversations()) = 0, 'outsider has an empty inbox';
+  assert (select count(*) from storage.objects) = 0, 'outsider cannot see attachments';
+  begin
+    insert into storage.objects (bucket_id, name)
+      values ('message-attachments', (select id from public.conversations limit 1) || '/x.jpg');
+    raise exception 'outsider uploaded an attachment';
+  exception when insufficient_privilege or not_null_violation then null;
+  end;
+  begin
+    insert into storage.objects (bucket_id, name) values ('message-attachments', 'aaaaaaaa-0000-0000-0000-000000000099/x.jpg');
+    raise exception 'outsider uploaded into an unknown conversation';
+  exception when insufficient_privilege then null;
+  end;
   assert (select count(*) from public.profiles) = 1, 'outsider sees only themselves';
   begin
     perform public.create_lease(
@@ -108,12 +129,19 @@ do $$ begin
   end;
 end $$;
 
--- Landlord reads and marks the message read, and cannot see the outsider.
+-- Landlord sees the conversation in their inbox, reads it, and cannot see the outsider.
 set request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111';
-update public.messages set read_at = now();
-do $$ begin
+do $$
+declare
+  inbox record;
+begin
+  select * into strict inbox from public.list_conversations();
+  assert inbox.unread_count = 1, 'landlord has one unread message';
+  assert inbox.participant_names = array['Theo'], 'landlord sees the tenant in the inbox';
+  assert inbox.last_message_body = 'The kitchen sink is leaking', 'inbox shows the latest message';
+  assert public.mark_conversation_read(inbox.conversation_id) = 1, 'landlord marks it read';
+  assert (select unread_count from public.list_conversations()) = 0, 'nothing unread after reading';
   assert (select body from public.messages) = 'The kitchen sink is leaking', 'landlord reads the message';
-  assert (select count(*) from public.messages where read_at is not null) = 1, 'landlord marks it read';
   assert (select count(*) from public.profiles where id = '33333333-3333-3333-3333-333333333333') = 0,
     'landlord cannot see unrelated users';
 end $$;

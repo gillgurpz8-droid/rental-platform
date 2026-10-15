@@ -4,7 +4,7 @@ import { Pressable, StyleSheet } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { Brand, Spacing } from '@/constants/theme';
 
 export function Card({ children }: { children: ReactNode }) {
   return (
@@ -20,11 +20,14 @@ export function LinkCard({
   title,
   detail,
   note,
+  highlight,
 }: {
   href: Href;
   title: string;
   detail?: string;
   note?: string;
+  /** Draws attention to the note, for example an unread count. */
+  highlight?: boolean;
 }) {
   return (
     <Link href={href} asChild>
@@ -35,7 +38,10 @@ export function LinkCard({
               {title}
             </ThemedText>
             {note ? (
-              <ThemedText type="small" themeColor="textSecondary">
+              <ThemedText
+                type={highlight ? 'smallBold' : 'small'}
+                themeColor={highlight ? undefined : 'textSecondary'}
+                style={highlight ? styles.highlight : undefined}>
                 {note}
               </ThemedText>
             ) : null}
@@ -64,5 +70,6 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   title: { flex: 1 },
   pressed: { opacity: 0.7 },
+  highlight: { color: Brand },
   section: { marginTop: Spacing.two },
 });
