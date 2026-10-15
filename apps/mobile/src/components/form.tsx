@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, TextInput, type TextInputProps } from 'react-nat
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { Brand, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export function TextField({ label, error, ...props }: TextInputProps & { label: string; error?: string }) {
@@ -91,7 +91,6 @@ export function SegmentedControl<T extends string>({
   );
 }
 
-const Brand = '#208AEF';
 
 const styles = StyleSheet.create({
   field: { gap: Spacing.one },

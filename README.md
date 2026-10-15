@@ -48,6 +48,6 @@ server functions using the service role, never by the app.
 
 1. Scaffold: monorepo, app shell, schema, sign-up and sign-in by role (done)
 2. Properties, units, leases and tenant invites (done)
-3. Messaging with realtime updates, attachments and push notifications
+3. Messaging with realtime updates and photo attachments (done); push notifications next
 4. Rent payments with Stripe Connect: onboarding, charges, autopay, receipts
 5. Reminders, late fees, store release

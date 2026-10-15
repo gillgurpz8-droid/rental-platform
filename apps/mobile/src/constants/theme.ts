@@ -51,6 +51,9 @@ export const Fonts = Platform.select({
   },
 });
 
+/** Accent colour for primary buttons, links and unread counts. */
+export const Brand = '#208AEF';
+
 export const Spacing = {
   half: 2,
   one: 4,
