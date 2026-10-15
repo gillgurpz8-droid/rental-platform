@@ -1,0 +1,18 @@
+{
+  "name": "rental-platform",
+  "private": true,
+  "packageManager": "pnpm@10.28.0",
+  "scripts": {
+    "dev": "turbo run dev",
+    "typecheck": "turbo run typecheck",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "db:test": "./scripts/test-db.sh",
+    "supabase": "supabase"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.0",
+    "typescript": "~6.0.3",
+    "supabase": "^2.50.0"
+  }
+}
