@@ -11,6 +11,7 @@ export function TextField({ label, error, ...props }: TextInputProps & { label: 
     <ThemedView style={styles.field}>
       <ThemedText type="smallBold">{label}</ThemedText>
       <TextInput
+        accessibilityLabel={label}
         placeholderTextColor={theme.textSecondary}
         style={[styles.input, { color: theme.text, backgroundColor: theme.backgroundElement }]}
         {...props}
@@ -104,6 +105,7 @@ const styles = StyleSheet.create({
   button: {
     borderRadius: Spacing.two,
     paddingVertical: Spacing.three - Spacing.one,
+    paddingHorizontal: Spacing.three,
     alignItems: 'center',
   },
   primaryText: { color: '#ffffff' },

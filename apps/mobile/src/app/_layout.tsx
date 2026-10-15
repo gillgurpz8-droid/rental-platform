@@ -18,13 +18,16 @@ function RootNavigator() {
   if (loading) return null;
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack screenOptions={{ headerBackButtonDisplayMode: 'minimal' }}>
       <Stack.Protected guard={!!session}>
-        <Stack.Screen name="index" />
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="properties/new" options={{ title: 'Add property' }} />
+        <Stack.Screen name="properties/[id]" options={{ title: 'Property' }} />
+        <Stack.Screen name="units/[id]" options={{ title: 'Unit' }} />
       </Stack.Protected>
       <Stack.Protected guard={!session}>
-        <Stack.Screen name="sign-in" />
-        <Stack.Screen name="sign-up" />
+        <Stack.Screen name="sign-in" options={{ headerShown: false }} />
+        <Stack.Screen name="sign-up" options={{ headerShown: false }} />
       </Stack.Protected>
     </Stack>
   );
